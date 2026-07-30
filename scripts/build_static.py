@@ -2,11 +2,14 @@
 from datetime import date
 from html import escape
 from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from app.calculations import analyze, current_yield, price_from_yield
 from app.data_loader import TreasuryDailyRateProvider, TreasuryDirectAuctionProvider
 
-ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site"
 TERMS = [
     "4-Week Bill", "6-Week Bill", "8-Week Bill", "13-Week Bill",
