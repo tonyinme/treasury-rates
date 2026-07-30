@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Treasury Income Table</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">U.S. TREASURY COMPARISON</p>
+        <h1>Treasury auction & market rates</h1>
+        <p class="intro">Official auction results paired with a daily market-derived price estimate.</p>
+      </div>
+      <span class="sample official">OFFICIAL AUCTION DATA</span>
+    </header>
+
+    <section class="table-card" aria-labelledby="table-title">
+      <div class="table-heading">
+        <div>
+          <h2 id="table-title">Treasury terms</h2>
+          <p>Two rows per term: issuance and secondary market</p>
+        </div>
+        <p class="as-of">Official daily data</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="text-col">Term</th>
+            <th class="text-col">Market</th>
+            <th class="date-col">Auction / quote date</th>
+            <th class="date-col">Maturity date</th>
+            <th>Coupon</th>
+            <th>Price</th>
+            <th>Current yield</th>
+            <th>YTM</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="status" role="status">Loading sample Treasuries…</p>
+    </section>
+
+    <section class="notes" aria-label="Data notes">
+      <h2>What the markers mean</h2>
+      <div class="note-grid">
+        <p><span class="marker auction">Auction</span><strong>Official Treasury issuance result.</strong> The date is the Treasury auction date and the price is the auction price.</p>
+        <p><span class="marker market">Market estimate</span><strong>Prior-business-day Treasury rate.</strong> Price is modeled from the official daily yield, coupon, and maturity—not a live bid or ask.</p>
+      </div>
+      <p class="bill-note">Treasury bills have no coupon. Their market estimates use Treasury’s daily coupon-equivalent bill yields; note and bond estimates use the daily par yield curve.</p>
+    </section>
+    <footer>Current yield is not total return. Market-estimate prices are modeled reference values, not executable quotes. This is not investment advice.</footer>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
