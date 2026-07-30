@@ -42,7 +42,6 @@
       </div>
       <p id="status" role="status">Loading sample Treasuries…</p>
     </section>
-
     <section class="notes" aria-label="Data notes">
       <h2>What the markers mean</h2>
       <div class="note-grid">
@@ -51,8 +50,23 @@
       </div>
       <p class="bill-note">Treasury bills have no coupon. Their market estimates use Treasury’s daily coupon-equivalent bill yields; note and bond estimates use the daily par yield curve.</p>
     </section>
+    <section class="chart-card" aria-labelledby="history-title">
+      <div class="chart-heading">
+        <div><p class="eyebrow">HISTORICAL AUCTIONS</p><h2 id="history-title">Auction rates over time</h2>
+        <p>Select one or more Treasury terms to compare.</p></div>
+        <span id="chart-range">Since Jul 1998</span>
+      </div>
+      <fieldset id="term-picker"><legend>Terms to plot</legend></fieldset>
+      <div class="chart-wrap">
+        <canvas id="history-chart" aria-label="Line chart of Treasury auction rates by date"></canvas>
+        <div id="chart-tooltip" role="status" aria-live="polite"></div>
+      </div>
+      <p id="chart-status">Loading official auction history…</p>
+      <p class="chart-note">TreasuryDirect’s query dataset begins July 27, 1998, so it currently provides about 28 years—not a complete 30 years. Each term begins when it was first offered in the dataset. Bill lines use the auction’s high investment rate; notes and bonds use the high yield.</p>
+    </section>
     <footer>Current yield is not total return. Market-estimate prices are modeled reference values, not executable quotes. This is not investment advice.</footer>
   </main>
+  <script src="/static/history-chart.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

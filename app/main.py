@@ -7,7 +7,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from .calculations import accrued_interest, analyze, current_yield, price_from_yield
-from .data_loader import DataValidationError, SampleDataProvider, TreasuryDirectAuctionProvider, TreasuryDailyRateProvider, load_csv
+from .data_loader import DataValidationError, SampleDataProvider, TreasuryAuctionHistoryProvider, TreasuryDirectAuctionProvider, TreasuryDailyRateProvider, load_csv
 
 ROOT=Path(__file__).parent.parent
 app=FastAPI(title="Treasury Income Screener")
@@ -19,6 +19,10 @@ try:
     market_rates,market_rate_status=TreasuryDailyRateProvider().fetch_rates()
 except DataValidationError:
     market_rates,market_rate_status={},"DAILY MARKET ESTIMATES UNAVAILABLE"
+try:
+    auction_history,auction_history_status=TreasuryAuctionHistoryProvider().fetch_history()
+except DataValidationError:
+    auction_history,auction_history_status={},"AUCTION HISTORY UNAVAILABLE"
 
 def rows(settlement: date, investment: float, price_basis: str):
     results=[]
@@ -57,6 +61,10 @@ def get_summary(settlement:date=Query(default_factory=date.today),investment:flo
     return {"highest_current_yield":best("current_yield_clean"),"highest_annual_cash":best("annual_coupon_cash"),
       "highest_ytm":best("ytm"),"lowest_duration":best("modified_duration",False),
       "largest_gain_to_par":best("principal_gain_loss_dirty"),"count":len(data)}
+
+@app.get("/api/auction-history")
+def get_auction_history():
+    return {"series":auction_history,"status":auction_history_status,"available_since":"1998-07-27"}
 
 @app.post("/api/import")
 async def import_csv(file:UploadFile=File(...)):

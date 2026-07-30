@@ -2,13 +2,14 @@
 from datetime import date
 from html import escape
 from pathlib import Path
+import json
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.calculations import analyze, current_yield, price_from_yield
-from app.data_loader import TreasuryDailyRateProvider, TreasuryDirectAuctionProvider
+from app.data_loader import TreasuryAuctionHistoryProvider, TreasuryDailyRateProvider, TreasuryDirectAuctionProvider
 
 OUT = ROOT / "site"
 TERMS = [
@@ -30,6 +31,7 @@ def short_date(value):
 def build():
     securities = TreasuryDirectAuctionProvider().fetch_securities()
     rates, rate_status = TreasuryDailyRateProvider().fetch_rates()
+    history, history_status = TreasuryAuctionHistoryProvider().fetch_history()
     securities.sort(key=lambda security: TERMS.index(security.security_type))
     rows, auction_dates = [], []
     for security in securities:
@@ -60,6 +62,7 @@ def build():
         </tr>""")
 
     css = (ROOT / "app" / "static" / "styles.css").read_text()
+    chart_js = (ROOT / "app" / "static" / "history-chart.js").read_text()
     latest_rate = max(date.fromisoformat(value["date"]) for value in rates.values())
     status = (
         f"{len(securities)} standard Treasury terms · auctions "
@@ -91,13 +94,23 @@ The date is the auction date and the price is the auction price.</p>
 Price is modeled from the official daily yield, coupon, and maturity—not a live bid or ask.</p>
 </div><p class="bill-note">Treasury bills have no coupon. Their estimates use Treasury’s daily
 coupon-equivalent bill yields; note and bond estimates use the daily par yield curve.</p></section>
+<section class="chart-card" aria-labelledby="history-title"><div class="chart-heading"><div>
+<p class="eyebrow">HISTORICAL AUCTIONS</p><h2 id="history-title">Auction rates over time</h2>
+<p>Select one or more Treasury terms to compare.</p></div><span id="chart-range">Since Jul 1998</span></div>
+<fieldset id="term-picker"><legend>Terms to plot</legend></fieldset><div class="chart-wrap">
+<canvas id="history-chart" aria-label="Line chart of Treasury auction rates by date"></canvas>
+<div id="chart-tooltip" role="status" aria-live="polite"></div></div>
+<p id="chart-status">Loading official auction history…</p>
+<p class="chart-note">TreasuryDirect’s query dataset begins July 27, 1998, so it currently provides about 28 years—not a complete 30 years. Each term begins when it was first offered in the dataset. Bill lines use the auction’s high investment rate; notes and bonds use the high yield.</p></section>
 <footer>Current yield is not total return. Market-estimate prices are modeled reference values,
 not executable quotes. This is not investment advice.</footer>
-</main></body></html>"""
+</main><script>{chart_js}</script><script>
+window.renderTreasuryHistory({json.dumps({"series":history,"status":history_status,"available_since":"1998-07-27"},separators=(",",":"))});
+</script></body></html>"""
     OUT.mkdir(exist_ok=True)
     (OUT / "index.html").write_text(page)
     (OUT / ".nojekyll").write_text("")
-    print(f"Built {OUT / 'index.html'} using {rate_status}")
+    print(f"Built {OUT / 'index.html'} using {rate_status} and {history_status}")
 
 if __name__ == "__main__":
     build()

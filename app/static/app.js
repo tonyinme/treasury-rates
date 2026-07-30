@@ -45,3 +45,10 @@ async function load() {
   }
 }
 load();
+fetch("/api/auction-history")
+  .then(response => {
+    if (!response.ok) throw new Error("Auction history could not be loaded.");
+    return response.json();
+  })
+  .then(data => window.renderTreasuryHistory(data))
+  .catch(error => document.querySelector("#chart-status").textContent = error.message);

@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import pandas as pd
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 from xml.etree import ElementTree
 from .models import REQUIRED_FIELDS, TreasurySecurity
 
@@ -101,6 +102,68 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
                 rows=json.loads(self.cache_path.read_text())
                 return self._convert(rows,"CACHED OFFICIAL AUCTION RESULT")
             raise DataValidationError(f"TreasuryDirect data unavailable and no cache exists: {exc}") from exc
+
+class TreasuryAuctionHistoryProvider:
+    """Official nominal Treasury auction rates from TreasuryDirect's query feed."""
+    BASE = "https://www.treasurydirect.gov/TA_WS/securities/jqsearch"
+    TERMS = [f"{term} Bill" if "Week" in term else
+             f"{term} Bond" if term in {"20-Year", "30-Year"} else f"{term} Note"
+             for term in TreasuryDirectAuctionProvider.TERMS]
+
+    def __init__(self, cache_path=None, timeout=30, page_size=1000):
+        self.cache_path = Path(cache_path or Path(__file__).parent.parent/"data"/"treasury_auction_history_cache.json")
+        self.timeout = timeout
+        self.page_size = page_size
+
+    def _page(self, page_number):
+        query=urlencode({"format":"json","pagenum":page_number,"pagesize":self.page_size})
+        request=Request(f"{self.BASE}?{query}",headers={"User-Agent":"TreasuryIncomeScreener/1.0"})
+        with urlopen(request,timeout=self.timeout) as response:
+            return json.load(response)
+
+    @staticmethod
+    def _term(row):
+        base=(row.get("securityTerm") if row.get("securityType")=="Bill"
+              else row.get("originalSecurityTerm") or row.get("securityTerm"))
+        suffix={"Bill":"Bill","Note":"Note","Bond":"Bond"}.get(row.get("securityType"))
+        return f"{base} {suffix}" if base and suffix else None
+
+    def _convert(self, records):
+        history={term:[] for term in self.TERMS}
+        seen=set()
+        for row in records:
+            term=self._term(row)
+            rate=row.get("highInvestmentRate") if row.get("securityType")=="Bill" else row.get("highYield")
+            auction_date=(row.get("auctionDate") or "")[:10]
+            if term not in history or not auction_date or not rate or row.get("tips")=="Yes":
+                continue
+            key=(term,auction_date,row.get("cusip"))
+            if key in seen: continue
+            seen.add(key)
+            history[term].append([auction_date,float(rate)])
+        for points in history.values():
+            points.sort(key=lambda point:point[0])
+        return history
+
+    def _download(self):
+        first=self._page(0)
+        records=list(first.get("securityList",[]))
+        total=int(first.get("totalResultsCount",len(records)))
+        pages=(total+self.page_size-1)//self.page_size
+        for page in range(1,pages):
+            records.extend(self._page(page).get("securityList",[]))
+        return self._convert(records)
+
+    def fetch_history(self):
+        try:
+            history=self._download()
+            if not any(history.values()): raise DataValidationError("Auction history feed was empty")
+            self.cache_path.write_text(json.dumps(history,separators=(",",":")))
+            return history,"OFFICIAL TREASURY AUCTION HISTORY"
+        except Exception as exc:
+            if self.cache_path.exists():
+                return json.loads(self.cache_path.read_text()),"CACHED OFFICIAL TREASURY AUCTION HISTORY"
+            raise DataValidationError(f"Treasury auction history unavailable and no cache exists: {exc}") from exc
 
 class TreasuryDailyRateProvider:
     """Official prior-business-day bill and par-yield-curve observations."""
