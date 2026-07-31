@@ -18,12 +18,17 @@ def test_auction_provider_selects_latest_for_each_term():
         base={"cusip":term,"securityType":kind,"securityTerm":term,"originalSecurityTerm":term,
               "auctionDate":"2026-01-01T00:00:00","issueDate":"2026-01-02T00:00:00",
               "maturityDate":"2030-01-01T00:00:00","highPrice":"99","interestRate":"",
-              "highInvestmentRate":"4","highYield":""}
+              "highInvestmentRate":"4","highYield":"","pdfFilenameCompetitiveResults":"R_20260101_1.pdf"}
         rows.append(base)
     rows.append({**rows[0],"auctionDate":"2026-02-01T00:00:00","highPrice":"98"})
     selected=provider._select_latest(rows)
     assert len(selected)==14
     assert selected[0]["highPrice"]=="98"
+
+def test_auction_result_url_uses_exact_result_pdf():
+    row={"auctionDate":"2026-07-30T00:00:00","pdfFilenameCompetitiveResults":"R_20260730_2.pdf"}
+    assert TreasuryDirectAuctionProvider._result_url(row)==(
+      "https://www.treasurydirect.gov/instit/annceresult/press/preanre/2026/R_20260730_2.pdf")
 
 def test_daily_rate_xml_parser():
     xml=b"""<feed xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"

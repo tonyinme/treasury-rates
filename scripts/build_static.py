@@ -45,7 +45,8 @@ def build():
         market_current = current_yield(security.coupon_rate, market_price) if security.coupon_rate else None
         rows.append(f"""
         <tr class="auction-row">
-          <td rowspan="2" class="term"><strong>{escape(security.security_type)}</strong><span>{escape(security.CUSIP)}</span></td>
+          <td rowspan="2" class="term"><strong>{escape(security.security_type)}</strong>
+          {f'<a href="{escape(security.auction_result_url)}" target="_blank" rel="noopener" title="Open official Treasury auction result for {escape(security.CUSIP)}">{escape(security.CUSIP)}<span class="external-mark" aria-hidden="true">↗</span></a>' if security.auction_result_url else f'<span>{escape(security.CUSIP)}</span>'}</td>
           <td class="text-col"><span class="marker auction">Auction</span></td>
           <td class="date-col">{short_date(security.auction_date)}</td>
           <td class="date-col">{short_date(security.maturity_date)}</td>

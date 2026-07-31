@@ -53,6 +53,14 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
     @staticmethod
     def _date(value): return date.fromisoformat(value[:10])
 
+    @staticmethod
+    def _result_url(row):
+        filename=row.get("pdfFilenameCompetitiveResults")
+        auction_date=row.get("auctionDate") or ""
+        if not filename or len(auction_date)<4: return None
+        return ("https://www.treasurydirect.gov/instit/annceresult/press/preanre/"
+                f"{auction_date[:4]}/{filename}")
+
     def _download(self):
         records=[]
         for kind in ("Bill","Note","Bond"):
@@ -89,7 +97,7 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
                 row["cusip"],f"{term} {row['securityType']}",self._date(row["issueDate"]),
                 self._date(row["maturityDate"]),coupon,price,price,price,
                 datetime.fromisoformat(row["auctionDate"]), "U.S. TreasuryDirect", status,
-                auction_date, auction_yield))
+                auction_date, auction_yield, self._result_url(row)))
         return result
 
     def fetch_securities(self):

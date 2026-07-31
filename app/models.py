@@ -22,3 +22,4 @@ class TreasurySecurity:
     data_status: str
     auction_date: Optional[date] = None
     auction_yield: Optional[float] = None
+    auction_result_url: Optional[str] = None

@@ -104,4 +104,5 @@ def analyze(sec, settlement, investment, price_basis="ask"):
       "source":sec.source, "data_status":sec.data_status,
       "auction_date":sec.auction_date.isoformat() if sec.auction_date else None,
       "auction_yield":sec.auction_yield,
+      "auction_result_url":sec.auction_result_url,
     }

@@ -18,7 +18,9 @@ async function load() {
       const market = row.market_estimate;
       return `
       <tr class="auction-row">
-        <td rowspan="2" class="term"><strong>${row.security_type}</strong><span>${row.CUSIP}</span></td>
+        <td rowspan="2" class="term"><strong>${row.security_type}</strong>${row.auction_result_url
+          ? `<a href="${row.auction_result_url}" target="_blank" rel="noopener" title="Open official Treasury auction result for ${row.CUSIP}">${row.CUSIP}<span class="external-mark" aria-hidden="true">↗</span></a>`
+          : `<span>${row.CUSIP}</span>`}</td>
         <td class="text-col"><span class="marker auction">Auction</span></td>
         <td class="date-col">${shortDate(row.auction_date)}</td>
         <td class="date-col">${shortDate(row.maturity_date)}</td>
