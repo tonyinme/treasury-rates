@@ -97,7 +97,12 @@ coupon-equivalent bill yields; note and bond estimates use the daily par yield c
 <section class="chart-card" aria-labelledby="history-title"><div class="chart-heading"><div>
 <p class="eyebrow">HISTORICAL AUCTIONS</p><h2 id="history-title">Auction rates over time</h2>
 <p>Select one or more Treasury terms to compare.</p></div><span id="chart-range">Since Jul 1998</span></div>
-<fieldset id="term-picker"><legend>Terms to plot</legend></fieldset><div class="chart-wrap">
+<fieldset id="term-picker"><legend>Terms to plot</legend></fieldset>
+<div class="range-controls"><span>Time range</span><div id="range-picker" role="group" aria-label="Chart time range">
+<button type="button" data-years="1">1Y</button><button type="button" data-years="3">3Y</button>
+<button type="button" data-years="5">5Y</button><button type="button" data-years="10">10Y</button>
+<button type="button" data-years="max" class="active" aria-pressed="true">Max</button>
+</div></div><div class="chart-wrap">
 <canvas id="history-chart" aria-label="Line chart of Treasury auction rates by date"></canvas>
 <div id="chart-marker" aria-hidden="true"></div>
 <div id="chart-tooltip" role="status" aria-live="polite"></div></div>

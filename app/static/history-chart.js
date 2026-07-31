@@ -10,6 +10,10 @@
     const tooltip=document.querySelector("#chart-tooltip");
     const marker=document.querySelector("#chart-marker");
     const status=document.querySelector("#chart-status");
+    const rangePicker=document.querySelector("#range-picker");
+    const rangeLabel=document.querySelector("#chart-range");
+    const latestGlobal=Math.max(...Object.values(series).flatMap(points=>points.map(point=>new Date(point[0]+"T00:00:00Z").getTime())));
+    let rangeYears=null;
     picker.innerHTML=order.map(term=>`<label class="term-toggle"><input type="checkbox" value="${term}" ${["4-Week Bill","2-Year Note","10-Year Note","30-Year Bond"].includes(term)?"checked":""}><span>${short(term)}</span></label>`).join("")+
       `<button type="button" id="clear-series">Clear all</button>`;
     const clearButton=picker.querySelector("#clear-series");
@@ -22,7 +26,11 @@
       canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);
       const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
       const w=box.width,h=box.height,p={l:54,r:18,t:18,b:42};
-      const all=selected.flatMap(term=>(series[term]||[]).map(point=>[new Date(point[0]+"T00:00:00Z").getTime(),point[1],term]));
+      const cutoffDate=new Date(latestGlobal);
+      if(rangeYears)cutoffDate.setUTCFullYear(cutoffDate.getUTCFullYear()-rangeYears);
+      const cutoff=rangeYears?cutoffDate.getTime():-Infinity;
+      const visiblePoints=term=>(series[term]||[]).filter(point=>new Date(point[0]+"T00:00:00Z").getTime()>=cutoff);
+      const all=selected.flatMap(term=>visiblePoints(term).map(point=>[new Date(point[0]+"T00:00:00Z").getTime(),point[1],term]));
       ctx.clearRect(0,0,w,h);
       if(!all.length){
         canvas._chart=null;tooltip.style.display="none";marker.style.display="none";
@@ -30,44 +38,57 @@
         ctx.fillText("Select a Treasury term to plot",w/2,h/2);
         status.textContent="No terms selected.";return
       }
-      const x0=Math.min(...all.map(p=>p[0])),x1=Math.max(...all.map(p=>p[0]));
+      const x0=rangeYears?cutoff:Math.min(...all.map(p=>p[0])),x1=latestGlobal;
       const ymax=Math.max(1,Math.ceil(Math.max(...all.map(p=>p[1]))/2)*2);
       const x=v=>p.l+(v-x0)/(x1-x0)*(w-p.l-p.r),y=v=>p.t+(ymax-v)/ymax*(h-p.t-p.b);
       ctx.font="11px -apple-system, sans-serif";ctx.fillStyle="#677580";ctx.strokeStyle="#e1e6e9";ctx.lineWidth=1;
       for(let rate=0;rate<=ymax;rate+=2){const py=y(rate);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke();ctx.fillText(rate+"%",8,py+4)}
-      const startYear=new Date(x0).getUTCFullYear(),endYear=new Date(x1).getUTCFullYear();
-      const step=w<650?5:4;
-      for(let yr=startYear;yr<=endYear;yr++){
-        for(const month of [0,6]){
-          const px=x(Date.UTC(yr,month,1));if(px<p.l||px>w-p.r)continue;
+      const markerStep=rangeYears===1?1:rangeYears&&rangeYears<=5?3:6;
+      const labelStep=rangeYears===1?2:rangeYears===3?6:rangeYears===5?12:rangeYears===10?24:48;
+      const first=new Date(x0),last=new Date(x1);
+      let markerIndex=0;
+      for(let yr=first.getUTCFullYear();yr<=last.getUTCFullYear();yr++){
+        for(let month=0;month<12;month+=markerStep){
+          const time=Date.UTC(yr,month,1),px=x(time);if(px<p.l||px>w-p.r)continue;
           ctx.strokeStyle=month===0?"#d7dfe4":"#edf0f2";ctx.lineWidth=1;
           ctx.beginPath();ctx.moveTo(px,p.t);ctx.lineTo(px,h-p.b);ctx.stroke();
-        }
-        if(yr%step===0){
-          const px=x(Date.UTC(yr,0,1));
-          ctx.fillStyle="#677580";ctx.textAlign="center";ctx.fillText(String(yr),px,h-17);
+          if(markerIndex%Math.max(1,labelStep/markerStep)===0){
+            const label=rangeYears===1?new Intl.DateTimeFormat("en-US",{month:"short",timeZone:"UTC"}).format(new Date(time)):String(yr);
+            ctx.fillStyle="#677580";ctx.textAlign="center";ctx.fillText(label,px,h-17);
+          }
+          markerIndex++;
         }
       }
       ctx.textAlign="left";
       selected.forEach(term=>{
-        const points=series[term]||[];if(!points.length)return;
+        const points=visiblePoints(term);if(!points.length)return;
         ctx.strokeStyle=colors[order.indexOf(term)];ctx.lineWidth=1.6;ctx.beginPath();
         points.forEach((point,i)=>{const px=x(new Date(point[0]+"T00:00:00Z").getTime()),py=y(point[1]);i?ctx.lineTo(px,py):ctx.moveTo(px,py)});
         ctx.stroke();
       });
       status.textContent=`Showing ${selected.length} term${selected.length===1?"":"s"} · ${all.length.toLocaleString()} official auction results${payload.status?.startsWith("CACHED")?" · cached":""}`;
       const plotted=Object.fromEntries(selected.map(term=>[
-        term,(series[term]||[]).map(point=>({
+        term,visiblePoints(term).map(point=>({
           time:new Date(point[0]+"T00:00:00Z").getTime(),rate:point[1],term,
           px:x(new Date(point[0]+"T00:00:00Z").getTime()),py:y(point[1])
         }))
       ]));
       canvas._chart={plotted,p,w,h};
       tooltip.style.display="none";marker.style.display="none";
+      const dateText=value=>new Intl.DateTimeFormat("en-US",{month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(value));
+      rangeLabel.textContent=rangeYears?`${dateText(x0)} – ${dateText(x1)}`:`Since ${dateText(x0)}`;
     }
     picker.addEventListener("change",draw);
     clearButton.addEventListener("click",()=>{
       picker.querySelectorAll("input:checked").forEach(input=>input.checked=false);
+      draw();
+    });
+    rangePicker.addEventListener("click",event=>{
+      const button=event.target.closest("button[data-years]");if(!button)return;
+      rangeYears=button.dataset.years==="max"?null:Number(button.dataset.years);
+      rangePicker.querySelectorAll("button").forEach(item=>{
+        const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active));
+      });
       draw();
     });
     canvas.addEventListener("pointermove",event=>{
