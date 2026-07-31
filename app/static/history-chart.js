@@ -9,18 +9,26 @@
     const canvas=document.querySelector("#history-chart");
     const tooltip=document.querySelector("#chart-tooltip");
     const status=document.querySelector("#chart-status");
-    picker.innerHTML=order.map((term,i)=>`<label class="term-toggle"><input type="checkbox" value="${term}" ${["4-Week Bill","2-Year Note","10-Year Note","30-Year Bond"].includes(term)?"checked":""}><span>${short(term)}</span></label>`).join("");
+    picker.innerHTML=order.map(term=>`<label class="term-toggle"><input type="checkbox" value="${term}" ${["4-Week Bill","2-Year Note","10-Year Note","30-Year Bond"].includes(term)?"checked":""}><span>${short(term)}</span></label>`).join("")+
+      `<button type="button" id="clear-series">Clear all</button>`;
+    const clearButton=picker.querySelector("#clear-series");
     const chosen=()=>[...picker.querySelectorAll("input:checked")].map(input=>input.value);
 
     function draw(){
       const selected=chosen();
+      clearButton.disabled=!selected.length;
       const box=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
       canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);
       const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
       const w=box.width,h=box.height,p={l:54,r:18,t:18,b:42};
       const all=selected.flatMap(term=>(series[term]||[]).map(point=>[new Date(point[0]+"T00:00:00Z").getTime(),point[1],term]));
       ctx.clearRect(0,0,w,h);
-      if(!all.length){status.textContent="Select at least one term with available history.";return}
+      if(!all.length){
+        canvas._chart=null;tooltip.style.display="none";
+        ctx.font="14px -apple-system, sans-serif";ctx.fillStyle="#677580";ctx.textAlign="center";
+        ctx.fillText("Select a Treasury term to plot",w/2,h/2);
+        status.textContent="No terms selected.";return
+      }
       const x0=Math.min(...all.map(p=>p[0])),x1=Math.max(...all.map(p=>p[0]));
       const ymax=Math.max(1,Math.ceil(Math.max(...all.map(p=>p[1]))/2)*2);
       const x=v=>p.l+(v-x0)/(x1-x0)*(w-p.l-p.r),y=v=>p.t+(ymax-v)/ymax*(h-p.t-p.b);
@@ -28,7 +36,17 @@
       for(let rate=0;rate<=ymax;rate+=2){const py=y(rate);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke();ctx.fillText(rate+"%",8,py+4)}
       const startYear=new Date(x0).getUTCFullYear(),endYear=new Date(x1).getUTCFullYear();
       const step=w<650?5:4;
-      for(let yr=Math.ceil(startYear/step)*step;yr<=endYear;yr+=step){const px=x(Date.UTC(yr,0,1));ctx.beginPath();ctx.moveTo(px,p.t);ctx.lineTo(px,h-p.b);ctx.stroke();ctx.textAlign="center";ctx.fillText(String(yr),px,h-17)}
+      for(let yr=startYear;yr<=endYear;yr++){
+        for(const month of [0,6]){
+          const px=x(Date.UTC(yr,month,1));if(px<p.l||px>w-p.r)continue;
+          ctx.strokeStyle=month===0?"#d7dfe4":"#edf0f2";ctx.lineWidth=1;
+          ctx.beginPath();ctx.moveTo(px,p.t);ctx.lineTo(px,h-p.b);ctx.stroke();
+        }
+        if(yr%step===0){
+          const px=x(Date.UTC(yr,0,1));
+          ctx.fillStyle="#677580";ctx.textAlign="center";ctx.fillText(String(yr),px,h-17);
+        }
+      }
       ctx.textAlign="left";
       selected.forEach(term=>{
         const points=series[term]||[];if(!points.length)return;
@@ -40,6 +58,10 @@
       canvas._chart={all,x,x0,x1,p,w,h};
     }
     picker.addEventListener("change",draw);
+    clearButton.addEventListener("click",()=>{
+      picker.querySelectorAll("input:checked").forEach(input=>input.checked=false);
+      draw();
+    });
     canvas.addEventListener("pointermove",event=>{
       const chart=canvas._chart;if(!chart)return;
       const rect=canvas.getBoundingClientRect(),mx=event.clientX-rect.left;
