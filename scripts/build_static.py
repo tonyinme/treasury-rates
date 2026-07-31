@@ -99,6 +99,7 @@ coupon-equivalent bill yields; note and bond estimates use the daily par yield c
 <p>Select one or more Treasury terms to compare.</p></div><span id="chart-range">Since Jul 1998</span></div>
 <fieldset id="term-picker"><legend>Terms to plot</legend></fieldset><div class="chart-wrap">
 <canvas id="history-chart" aria-label="Line chart of Treasury auction rates by date"></canvas>
+<div id="chart-marker" aria-hidden="true"></div>
 <div id="chart-tooltip" role="status" aria-live="polite"></div></div>
 <p id="chart-status">Loading official auction history…</p>
 <p class="chart-note">TreasuryDirect’s auction history begins July 27, 1998. Each term begins when it was first offered in the dataset. Bill lines use the auction’s high investment rate; notes and bonds use the high yield.</p></section>

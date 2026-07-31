@@ -8,6 +8,7 @@
     const picker=document.querySelector("#term-picker");
     const canvas=document.querySelector("#history-chart");
     const tooltip=document.querySelector("#chart-tooltip");
+    const marker=document.querySelector("#chart-marker");
     const status=document.querySelector("#chart-status");
     picker.innerHTML=order.map(term=>`<label class="term-toggle"><input type="checkbox" value="${term}" ${["4-Week Bill","2-Year Note","10-Year Note","30-Year Bond"].includes(term)?"checked":""}><span>${short(term)}</span></label>`).join("")+
       `<button type="button" id="clear-series">Clear all</button>`;
@@ -24,7 +25,7 @@
       const all=selected.flatMap(term=>(series[term]||[]).map(point=>[new Date(point[0]+"T00:00:00Z").getTime(),point[1],term]));
       ctx.clearRect(0,0,w,h);
       if(!all.length){
-        canvas._chart=null;tooltip.style.display="none";
+        canvas._chart=null;tooltip.style.display="none";marker.style.display="none";
         ctx.font="14px -apple-system, sans-serif";ctx.fillStyle="#677580";ctx.textAlign="center";
         ctx.fillText("Select a Treasury term to plot",w/2,h/2);
         status.textContent="No terms selected.";return
@@ -55,7 +56,14 @@
         ctx.stroke();
       });
       status.textContent=`Showing ${selected.length} term${selected.length===1?"":"s"} · ${all.length.toLocaleString()} official auction results${payload.status?.startsWith("CACHED")?" · cached":""}`;
-      canvas._chart={all,x,x0,x1,p,w,h};
+      const plotted=Object.fromEntries(selected.map(term=>[
+        term,(series[term]||[]).map(point=>({
+          time:new Date(point[0]+"T00:00:00Z").getTime(),rate:point[1],term,
+          px:x(new Date(point[0]+"T00:00:00Z").getTime()),py:y(point[1])
+        }))
+      ]));
+      canvas._chart={plotted,p,w,h};
+      tooltip.style.display="none";marker.style.display="none";
     }
     picker.addEventListener("change",draw);
     clearButton.addEventListener("click",()=>{
@@ -64,18 +72,32 @@
     });
     canvas.addEventListener("pointermove",event=>{
       const chart=canvas._chart;if(!chart)return;
-      const rect=canvas.getBoundingClientRect(),mx=event.clientX-rect.left;
-      const time=chart.x0+(mx-chart.p.l)/(chart.w-chart.p.l-chart.p.r)*(chart.x1-chart.x0);
-      const candidates=chosen().map(term=>{
-        const points=series[term]||[];let best=null;
-        for(const point of points){const t=new Date(point[0]+"T00:00:00Z").getTime(),d=Math.abs(t-time);if(!best||d<best.d)best={point,t,d,term}}
-        return best;
-      }).filter(Boolean);
-      const best=candidates.sort((a,b)=>a.d-b.d)[0];if(!best)return;
-      tooltip.style.display="block";tooltip.textContent=`${short(best.term)} · ${best.point[0]} · ${best.point[1].toFixed(3)}%`;
-      tooltip.style.left=Math.min(mx+12,rect.width-tooltip.offsetWidth-6)+"px";tooltip.style.top="12px";
+      const rect=canvas.getBoundingClientRect(),mx=event.clientX-rect.left,my=event.clientY-rect.top;
+      let closestLine=null;
+      for(const [term,points] of Object.entries(chart.plotted)){
+        for(let i=1;i<points.length;i++){
+          const a=points[i-1],b=points[i],dx=b.px-a.px,dy=b.py-a.py;
+          const lengthSquared=dx*dx+dy*dy;
+          const along=lengthSquared?Math.max(0,Math.min(1,((mx-a.px)*dx+(my-a.py)*dy)/lengthSquared)):0;
+          const lineX=a.px+along*dx,lineY=a.py+along*dy;
+          const distance=Math.hypot(lineX-mx,lineY-my);
+          if(!closestLine||distance<closestLine.distance)closestLine={term,distance};
+        }
+      }
+      if(!closestLine||closestLine.distance>45){tooltip.style.display="none";marker.style.display="none";return}
+      let best=null;
+      for(const point of chart.plotted[closestLine.term]){
+        const distance=Math.hypot(point.px-mx,point.py-my);
+        if(!best||distance<best.distance)best={...point,distance};
+      }
+      const pointDate=new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(best.time));
+      marker.style.display="block";marker.style.background=colors[order.indexOf(best.term)];
+      marker.style.left=(canvas.offsetLeft+best.px)+"px";marker.style.top=(canvas.offsetTop+best.py)+"px";
+      tooltip.style.display="block";tooltip.textContent=`${short(best.term)} · ${pointDate} · ${best.rate.toFixed(3)}%`;
+      tooltip.style.left=Math.min(canvas.offsetLeft+best.px+12,canvas.offsetLeft+rect.width-tooltip.offsetWidth-6)+"px";
+      tooltip.style.top=Math.max(6,canvas.offsetTop+best.py-tooltip.offsetHeight-12)+"px";
     });
-    canvas.addEventListener("pointerleave",()=>tooltip.style.display="none");
+    canvas.addEventListener("pointerleave",()=>{tooltip.style.display="none";marker.style.display="none"});
     new ResizeObserver(draw).observe(canvas);draw();
   };
 }());
