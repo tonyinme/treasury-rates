@@ -88,23 +88,24 @@ def build():
 <p class="intro">Official auction results paired with a daily market-derived price estimate.</p>
 </div><div class="header-status"><span class="sample official">OFFICIAL TREASURY DATA</span>
 <span class="refresh-state"><i aria-hidden="true"></i><span>Automatic weekday refresh<strong>{refreshed_label}</strong></span></span></div></header>
-<section class="table-card" aria-labelledby="table-title">
+<nav class="section-nav" aria-label="Page sections"><a href="#current-rates">Current rates</a><a href="#methodology">Methodology</a><a href="#history">Auction history</a></nav>
+<section class="table-card" id="current-rates" aria-labelledby="table-title">
 <div class="table-heading"><div><h2 id="table-title">Treasury terms</h2>
-<p>Two rows per term: issuance and market estimate</p></div><p class="as-of">Official daily data</p></div>
+<p>Official issuance results alongside modeled market estimates</p></div><p class="as-of">Latest official observations</p></div>
 <div class="table-wrap"><table><thead><tr>
 <th class="text-col">Term</th><th class="text-col">Market</th>
 <th class="date-col">Auction / rate date</th><th class="date-col">Maturity date</th>
 <th>Coupon</th><th>Price</th><th>Current yield</th><th>YTM</th>
 </tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p id="status" role="status">{status}</p></section>
-<section class="notes" aria-label="Data notes"><h2>What the markers mean</h2><div class="note-grid">
+<section class="notes" id="methodology" aria-label="Data notes"><h2>How to read the data</h2><div class="note-grid">
 <p><span class="marker auction">Auction</span><strong>Official Treasury issuance result.</strong>
 The date is the auction date and the price is the auction price.</p>
 <p><span class="marker market">Market estimate</span><strong>Prior-business-day Treasury rate.</strong>
 Price is modeled from the official daily yield, coupon, and maturity—not a live bid or ask.</p>
 </div><p class="bill-note">Treasury bills have no coupon. Their estimates use Treasury’s daily
 coupon-equivalent bill yields; note and bond estimates use the daily par yield curve.</p></section>
-<section class="chart-card" aria-labelledby="history-title"><div class="chart-heading"><div>
+<section class="chart-card" id="history" aria-labelledby="history-title"><div class="chart-heading"><div>
 <p class="eyebrow">HISTORICAL AUCTIONS</p><h2 id="history-title">Auction rates over time</h2>
 <p>Select one or more Treasury terms to compare.</p></div><span id="chart-range">Since Jul 1998</span></div>
 <fieldset id="term-picker"><legend>Terms to plot</legend></fieldset>
