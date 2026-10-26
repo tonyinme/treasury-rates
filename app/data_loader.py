@@ -54,9 +54,18 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
     def _date(value): return date.fromisoformat(value[:10])
 
     @staticmethod
+    def _auction_date(row):
+        return row.get("competitiveAuctionCloseDate") or row.get("auctionDate")
+
+    @staticmethod
+    def _bill_investment_rate(row):
+        return row.get("investmentRate") or row.get("highInvestmentRate")
+
+    @staticmethod
     def _result_url(row):
-        filename=row.get("pdfFilenameCompetitiveResults")
-        auction_date=row.get("auctionDate") or ""
+        filename=(row.get("treasuryAuctionResultsPressReleaseFileName")
+                  or row.get("pdfFilenameCompetitiveResults"))
+        auction_date=TreasuryDirectAuctionProvider._auction_date(row) or ""
         if not filename or len(auction_date)<4: return None
         return ("https://www.treasurydirect.gov/instit/annceresult/press/preanre/"
                 f"{auction_date[:4]}/{filename}")
@@ -76,9 +85,10 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
             # auction tenor is securityTerm. Notes/bonds use original tenor.
             term=(row.get("securityTerm") if row.get("securityType")=="Bill"
                   else row.get("originalSecurityTerm") or row.get("securityTerm"))
-            if term not in self.TERMS or not row.get("auctionDate") or not row.get("highPrice"):
+            auction_date=self._auction_date(row)
+            if term not in self.TERMS or not auction_date or not row.get("highPrice"):
                 continue
-            if term not in latest or row["auctionDate"] > latest[term]["auctionDate"]:
+            if term not in latest or auction_date > self._auction_date(latest[term]):
                 latest[term]=row
         missing=[term for term in self.TERMS if term not in latest]
         if missing: raise DataValidationError("TreasuryDirect did not return: "+", ".join(missing))
@@ -90,13 +100,14 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
             term=(row.get("securityTerm") if row.get("securityType")=="Bill"
                   else row.get("originalSecurityTerm") or row["securityTerm"])
             coupon=float(row.get("interestRate") or 0)/100
-            auction_yield=float(row.get("highInvestmentRate") or row.get("highYield") or 0)/100
+            auction_yield=float(self._bill_investment_rate(row) or row.get("highYield") or 0)/100
             price=float(row["highPrice"])
-            auction_date=self._date(row["auctionDate"])
+            auction_date_value=self._auction_date(row)
+            auction_date=self._date(auction_date_value)
             result.append(TreasurySecurity(
                 row["cusip"],f"{term} {row['securityType']}",self._date(row["issueDate"]),
                 self._date(row["maturityDate"]),coupon,price,price,price,
-                datetime.fromisoformat(row["auctionDate"]), "U.S. TreasuryDirect", status,
+                datetime.fromisoformat(auction_date_value), "U.S. TreasuryDirect", status,
                 auction_date, auction_yield, self._result_url(row)))
         return result
 
@@ -141,8 +152,9 @@ class TreasuryAuctionHistoryProvider:
         seen=set()
         for row in records:
             term=self._term(row)
-            rate=row.get("highInvestmentRate") if row.get("securityType")=="Bill" else row.get("highYield")
-            auction_date=(row.get("auctionDate") or "")[:10]
+            rate=(TreasuryDirectAuctionProvider._bill_investment_rate(row)
+                  if row.get("securityType")=="Bill" else row.get("highYield"))
+            auction_date=(TreasuryDirectAuctionProvider._auction_date(row) or "")[:10]
             if term not in history or not auction_date or not rate or row.get("tips")=="Yes":
                 continue
             key=(term,auction_date,row.get("cusip"))

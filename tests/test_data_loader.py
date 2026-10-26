@@ -30,6 +30,13 @@ def test_auction_result_url_uses_exact_result_pdf():
     assert TreasuryDirectAuctionProvider._result_url(row)==(
       "https://www.treasurydirect.gov/instit/annceresult/press/preanre/2026/R_20260730_2.pdf")
 
+def test_current_treasury_schema_aliases():
+    row={"competitiveAuctionCloseDate":"2026-10-26T00:00:00","investmentRate":"4.149",
+         "treasuryAuctionResultsPressReleaseFileName":"R_20261026_1.pdf"}
+    assert TreasuryDirectAuctionProvider._auction_date(row)=="2026-10-26T00:00:00"
+    assert TreasuryDirectAuctionProvider._bill_investment_rate(row)=="4.149"
+    assert TreasuryDirectAuctionProvider._result_url(row).endswith("/2026/R_20261026_1.pdf")
+
 def test_daily_rate_xml_parser():
     xml=b"""<feed xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
     xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices">

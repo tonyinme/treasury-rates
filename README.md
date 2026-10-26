@@ -46,8 +46,11 @@ pytest
 
 Run `python scripts/build_static.py` to generate the public static edition.
 The included GitHub Actions workflow refreshes official data on weekday
-evenings, builds the page, and deploys it to GitHub Pages. It can also be
-refreshed immediately from the repository's Actions tab with **Run workflow**.
+evenings, validates that the feeds are fresh, builds the page, and deploys it
+to GitHub Pages. Each successful refresh also commits the new data snapshot,
+which provides an audit trail and prevents GitHub from disabling the schedule
+for repository inactivity. It can also be refreshed immediately from the
+repository's Actions tab with **Run workflow**.
 
 ## Data and API
 

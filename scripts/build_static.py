@@ -1,8 +1,9 @@
 """Build a static GitHub Pages edition from official Treasury data."""
-from datetime import date
+from datetime import date, datetime, timezone
 from html import escape
 from pathlib import Path
 import json
+import os
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +33,11 @@ def build():
     securities = TreasuryDirectAuctionProvider().fetch_securities()
     rates, rate_status = TreasuryDailyRateProvider().fetch_rates()
     history, history_status = TreasuryAuctionHistoryProvider().fetch_history()
+    if os.environ.get("TREASURY_STRICT_REFRESH") == "1":
+        stale = [status for status in [rate_status, history_status] if status.startswith("CACHED")]
+        stale.extend(security.data_status for security in securities if security.data_status.startswith("CACHED"))
+        if stale:
+            raise RuntimeError("Fresh Treasury data could not be retrieved; refusing to publish cached data")
     securities.sort(key=lambda security: TERMS.index(security.security_type))
     rows, auction_dates = [], []
     for security in securities:
@@ -65,6 +71,8 @@ def build():
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     chart_js = (ROOT / "app" / "static" / "history-chart.js").read_text()
     latest_rate = max(date.fromisoformat(value["date"]) for value in rates.values())
+    refreshed_at = datetime.now(timezone.utc)
+    refreshed_label = refreshed_at.strftime("%b %d, %Y · %H:%M UTC").replace(" 0", " ")
     status = (
         f"{len(securities)} standard Treasury terms · auctions "
         f"{short_date(min(auction_dates))} through {short_date(max(auction_dates))} · "
@@ -78,7 +86,8 @@ def build():
 <header><div><p class="eyebrow">U.S. TREASURY COMPARISON</p>
 <h1>Treasury auction &amp; market rates</h1>
 <p class="intro">Official auction results paired with a daily market-derived price estimate.</p>
-</div><span class="sample official">OFFICIAL TREASURY DATA</span></header>
+</div><div class="header-status"><span class="sample official">OFFICIAL TREASURY DATA</span>
+<span class="refresh-state"><i aria-hidden="true"></i><span>Automatic weekday refresh<strong>{refreshed_label}</strong></span></span></div></header>
 <section class="table-card" aria-labelledby="table-title">
 <div class="table-heading"><div><h2 id="table-title">Treasury terms</h2>
 <p>Two rows per term: issuance and market estimate</p></div><p class="as-of">Official daily data</p></div>
