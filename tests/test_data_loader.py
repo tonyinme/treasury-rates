@@ -37,6 +37,12 @@ def test_current_treasury_schema_aliases():
     assert TreasuryDirectAuctionProvider._bill_investment_rate(row)=="4.149"
     assert TreasuryDirectAuctionProvider._result_url(row).endswith("/2026/R_20261026_1.pdf")
 
+def test_current_tips_schema_is_not_treated_as_nominal():
+    tips={"type":"TIPS","inflationProtected":"Yes","floatingRate":"No"}
+    nominal={"type":"Note","inflationProtected":"No","floatingRate":"No"}
+    assert not TreasuryDirectAuctionProvider._is_nominal(tips)
+    assert TreasuryDirectAuctionProvider._is_nominal(nominal)
+
 def test_daily_rate_xml_parser():
     xml=b"""<feed xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
     xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices">
@@ -53,7 +59,7 @@ def test_auction_history_maps_rates_and_terms():
        "originalSecurityTerm":"10-Year","auctionDate":"2020-01-03T00:00:00",
        "highInvestmentRate":"","highYield":"1.61","tips":"No"},
       {"cusip":"tips","securityType":"Note","securityTerm":"10-Year","originalSecurityTerm":"10-Year",
-       "auctionDate":"2020-01-04T00:00:00","highYield":"0.20","tips":"Yes"},
+       "auctionDate":"2020-01-04T00:00:00","highYield":"0.20","inflationProtected":"Yes","type":"TIPS"},
     ]
     history=provider._convert(records)
     assert history["4-Week Bill"]==[["2020-01-02",1.55]]

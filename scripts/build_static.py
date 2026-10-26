@@ -38,6 +38,12 @@ def build():
         stale.extend(security.data_status for security in securities if security.data_status.startswith("CACHED"))
         if stale:
             raise RuntimeError("Fresh Treasury data could not be retrieved; refusing to publish cached data")
+    for security in securities:
+        points=history.get(security.security_type) or []
+        if not points: raise RuntimeError(f"Auction history is missing {security.security_type}")
+        latest_date,latest_yield=points[-1]
+        if latest_date!=security.auction_date.isoformat() or abs(latest_yield/100-security.auction_yield)>1e-9:
+            raise RuntimeError(f"Auction table and chart disagree for {security.security_type}")
     securities.sort(key=lambda security: TERMS.index(security.security_type))
     rows, auction_dates = [], []
     for security in securities:
@@ -118,7 +124,7 @@ coupon-equivalent bill yields; note and bond estimates use the daily par yield c
 <div id="chart-marker" aria-hidden="true"></div>
 <div id="chart-tooltip" role="status" aria-live="polite"></div></div>
 <p id="chart-status">Loading official auction history…</p>
-<p class="chart-note">TreasuryDirect’s auction history begins July 27, 1998. Each term begins when it was first offered in the dataset. Bill lines use the auction’s high investment rate; notes and bonds use the high yield.</p></section>
+<p class="chart-note">TreasuryDirect’s auction history begins July 27, 1998. Each term begins when it was first offered in the dataset. Bill lines use the auction’s high investment rate; notes and bonds use the high yield. The vertical scale adjusts to the selected terms and time range.</p></section>
 <footer>Current yield is not total return. Market-estimate prices are modeled reference values,
 not executable quotes. This is not investment advice.</footer>
 </main><script>{chart_js}</script><script>

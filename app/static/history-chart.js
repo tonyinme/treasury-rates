@@ -22,10 +22,11 @@
     function draw(){
       const selected=chosen();
       clearButton.disabled=!selected.length;
-      const box=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+      const box=canvas.getBoundingClientRect(),dpr=Math.min(3,Math.max(2,window.devicePixelRatio||1));
       canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);
       const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
-      const w=box.width,h=box.height,p={l:54,r:18,t:18,b:42};
+      ctx.lineCap="round";ctx.lineJoin="round";
+      const w=box.width,h=box.height,p={l:58,r:20,t:20,b:44};
       const cutoffDate=new Date(latestGlobal);
       if(rangeYears)cutoffDate.setUTCFullYear(cutoffDate.getUTCFullYear()-rangeYears);
       const cutoff=rangeYears?cutoffDate.getTime():-Infinity;
@@ -39,10 +40,18 @@
         status.textContent="No terms selected.";return
       }
       const x0=rangeYears?cutoff:Math.min(...all.map(p=>p[0])),x1=latestGlobal;
-      const ymax=Math.max(1,Math.ceil(Math.max(...all.map(p=>p[1]))/2)*2);
-      const x=v=>p.l+(v-x0)/(x1-x0)*(w-p.l-p.r),y=v=>p.t+(ymax-v)/ymax*(h-p.t-p.b);
-      ctx.font="11px -apple-system, sans-serif";ctx.fillStyle="#677580";ctx.strokeStyle="#e1e6e9";ctx.lineWidth=1;
-      for(let rate=0;rate<=ymax;rate+=2){const py=y(rate);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke();ctx.fillText(rate+"%",8,py+4)}
+      const minRate=Math.min(...all.map(point=>point[1])),maxRate=Math.max(...all.map(point=>point[1]));
+      const rateSpan=maxRate-minRate;
+      const tickStep=rateSpan<=1.25?.25:rateSpan<=2.5?.5:1;
+      const ymin=Math.max(0,Math.floor((minRate-tickStep*.6)/tickStep)*tickStep);
+      const ymax=Math.max(ymin+tickStep,Math.ceil((maxRate+tickStep*.6)/tickStep)*tickStep);
+      const x=value=>p.l+(value-x0)/(x1-x0)*(w-p.l-p.r);
+      const y=value=>p.t+(ymax-value)/(ymax-ymin)*(h-p.t-p.b);
+      ctx.font="11px ui-sans-serif, -apple-system, sans-serif";ctx.fillStyle="#68767e";ctx.strokeStyle="#dfe5e7";ctx.lineWidth=1;
+      for(let rate=ymin;rate<=ymax+tickStep/2;rate+=tickStep){
+        const py=y(rate);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(w-p.r,py);ctx.stroke();
+        const digits=tickStep<1?2:0;ctx.fillText(rate.toFixed(digits)+"%",8,py+4);
+      }
       const markerStep=rangeYears===1?1:rangeYears&&rangeYears<=5?3:6;
       const labelStep=rangeYears===1?2:rangeYears===3?6:rangeYears===5?12:rangeYears===10?24:48;
       const first=new Date(x0),last=new Date(x1);
@@ -62,9 +71,18 @@
       ctx.textAlign="left";
       selected.forEach(term=>{
         const points=visiblePoints(term);if(!points.length)return;
-        ctx.strokeStyle=colors[order.indexOf(term)];ctx.lineWidth=1.6;ctx.beginPath();
-        points.forEach((point,i)=>{const px=x(new Date(point[0]+"T00:00:00Z").getTime()),py=y(point[1]);i?ctx.lineTo(px,py):ctx.moveTo(px,py)});
+        const color=colors[order.indexOf(term)];
+        const mapped=points.map(point=>({px:x(new Date(point[0]+"T00:00:00Z").getTime()),py:y(point[1])}));
+        ctx.strokeStyle=color;ctx.lineWidth=2;ctx.globalAlpha=.92;ctx.beginPath();
+        mapped.forEach((point,i)=>{i?ctx.lineTo(point.px,point.py):ctx.moveTo(point.px,point.py)});
         ctx.stroke();
+        const minimumGap=rangeYears===1?0:rangeYears&&rangeYears<=5?2.5:4;
+        let lastMarkerX=-Infinity;ctx.fillStyle=color;ctx.globalAlpha=.82;
+        mapped.forEach((point,i)=>{
+          if(i!==0&&i!==mapped.length-1&&point.px-lastMarkerX<minimumGap)return;
+          ctx.beginPath();ctx.arc(point.px,point.py,1.75,0,Math.PI*2);ctx.fill();lastMarkerX=point.px;
+        });
+        ctx.globalAlpha=1;
       });
       status.textContent=`Showing ${selected.length} term${selected.length===1?"":"s"} · ${all.length.toLocaleString()} official auction results${payload.status?.startsWith("CACHED")?" · cached":""}`;
       const plotted=Object.fromEntries(selected.map(term=>[

@@ -62,6 +62,15 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
         return row.get("investmentRate") or row.get("highInvestmentRate")
 
     @staticmethod
+    def _is_nominal(row):
+        return not (
+            row.get("tips")=="Yes"
+            or row.get("inflationProtected")=="Yes"
+            or row.get("floatingRate")=="Yes"
+            or row.get("type") in {"TIPS","FRN"}
+        )
+
+    @staticmethod
     def _result_url(row):
         filename=(row.get("treasuryAuctionResultsPressReleaseFileName")
                   or row.get("pdfFilenameCompetitiveResults"))
@@ -81,6 +90,7 @@ class TreasuryDirectAuctionProvider(TreasuryDataProvider):
     def _select_latest(self, records):
         latest={}
         for row in records:
+            if not self._is_nominal(row): continue
             # Bill reopenings retain a longer original term, so their current
             # auction tenor is securityTerm. Notes/bonds use original tenor.
             term=(row.get("securityTerm") if row.get("securityType")=="Bill"
@@ -155,7 +165,8 @@ class TreasuryAuctionHistoryProvider:
             rate=(TreasuryDirectAuctionProvider._bill_investment_rate(row)
                   if row.get("securityType")=="Bill" else row.get("highYield"))
             auction_date=(TreasuryDirectAuctionProvider._auction_date(row) or "")[:10]
-            if term not in history or not auction_date or not rate or row.get("tips")=="Yes":
+            if (term not in history or not auction_date or not rate
+                    or not TreasuryDirectAuctionProvider._is_nominal(row)):
                 continue
             key=(term,auction_date,row.get("cusip"))
             if key in seen: continue
